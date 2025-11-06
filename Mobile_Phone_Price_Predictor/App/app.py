@@ -1,12 +1,39 @@
 import streamlit as st
 import numpy as np
 import joblib
+from pathlib import Path
+import sys
+
+def fatal(msg: str):
+    try:
+        st.error(msg)
+    except Exception:
+        print(msg, file=sys.stderr)
+    sys.exit(1)
 
 # ==============================
-# Load model and scaler
+# Load model and scaler (robust)
 # ==============================
-model = joblib.load("model.joblib")    # your trained model
-scaler = joblib.load("scaler.joblib")            # your saved scaler
+def find_resource(filename: str) -> Path | None:
+    base = Path(__file__).resolve().parent
+    for p in (base, *base.parents):
+        candidate = p / filename
+        if candidate.exists():
+            return candidate
+    return None
+
+model_path = find_resource("model.joblib")
+scaler_path = find_resource("scaler.joblib")
+
+if model_path is None or scaler_path is None:
+    missing = [name for name, p in (("model.joblib", model_path), ("scaler.joblib", scaler_path)) if p is None]
+    fatal(f"Missing files: {', '.join(missing)}. Place them next to app.py (Mobile_Phone_Price_Predictor/App/) and redeploy.\nRun the app with: streamlit run {Path(__file__).resolve()}")
+
+try:
+    model = joblib.load(model_path)
+    scaler = joblib.load(scaler_path)
+except Exception as e:
+    fatal(f"Failed to load model/scaler: {e}")
 
 # ==============================
 # Streamlit UI Setup
